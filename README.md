@@ -54,8 +54,6 @@ Two small resident scripts, started at logon:
 
 - `scripts/fix-bluetooth.ps1` - **Intel AX200 only**: brings the Bluetooth radio back when Windows boots it into
   "Code 10" and every pad vanishes. Run elevated.
-- `tools/` - admin helpers, not installed: `run-in-session.ps1` (run a launcher mode on the desktop from SSH),
-  `keepawake.ps1` (keep the PC awake while an SSH session is open).
 
 ## Good to know
 
