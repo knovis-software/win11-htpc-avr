@@ -14,5 +14,13 @@
     "movie": "3840x2160@60",
     "desktop": "1920x1080@120"
   },
-  "user": "HTPCUSER"
+  "user": "HTPCUSER",
+  "stereoApps": [
+    {
+      "name": "YouTube",
+      "exe": "%LOCALAPPDATA%\\Programs\\VacuumTube\\VacuumTube.exe",
+      "args": "--fullscreen",
+      "waitForCommandLine": ""
+    }
+  ]
 }

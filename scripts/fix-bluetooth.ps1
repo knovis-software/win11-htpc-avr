@@ -1,4 +1,4 @@
-# fix-bluetooth.ps1 - the HTPC: bring the Intel AX200 Bluetooth radio back when it boots into Code 10.
+# fix-bluetooth.ps1 - Intel AX200 only: bring its Bluetooth radio back when it boots into Code 10.
 #
 # Started by the "Fix Bluetooth" Start-menu tile, which runs the FixBluetooth scheduled task
 # (elevated, no UAC prompt), or directly from an admin PowerShell. Log: <install folder>\fix-bluetooth.log.

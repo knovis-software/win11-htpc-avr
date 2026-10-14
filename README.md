@@ -21,12 +21,22 @@ that setup.
 | A Wi-Fi-only PC can't be woken by Wake-on-LAN | ESP32-S3 USB "keyboard" that listens on Wi-Fi (`dongle/`) |
 | One button for everything | Home Assistant package (`homeassistant/htpc-button.yaml`) + launch keys F13/F14 (`launch-keys.ahk`) |
 
+## Why AutoHotkey is in here
+
+Two small resident scripts, started at logon:
+- **`launch-keys.ahk` (the button):** the wake dongle is a USB keyboard. On the button's double / long press, Home
+  Assistant asks it to type **F13** or **F14**; this script turns those keys into the **Plex movie / music launchers**.
+  A keypress is the one thing that reaches the desktop session from outside without opening a network service on the PC.
+- **`avr-volume.ahk` (volume):** the Steam Guide chord sends the Windows **volume keys**; this script catches them and
+  steps the **receiver's** volume over the network instead, keeping Windows at 100 - one volume, from the gamepad.
+
 ## Install
 
 1. Install PowerShell 7, AutoHotkey v2 and Plex HTPC. Enable IP control on the TV and the AVR.
 2. Copy `htpc.config.example.json` to `htpc.config.json` and fill it in.
 3. Elevated PowerShell 7: `pwsh -File .\install.ps1`.
-4. Point your launcher or Start menu at the shortcuts in the install folder.
+4. Point your launcher or Start menu at the shortcuts in the install folder: `Plex HTPC 4K HDR`, `Plex HTPC Music`,
+   `Plex HTPC Plain`, and one per entry in `stereoApps` (e.g. `YouTube`).
 5. Optional: flash `dongle/htpc_wake` (Arduino, AtomS3 Lite), add `homeassistant/htpc-button.yaml`, run `edid/edid-override.ps1`.
 
 ## Adapting to your gear
@@ -39,6 +49,13 @@ that setup.
 | Other TV | Replace `Invoke-TvVideo` / `Set-TvPicture` in `PlexHDR.ps1`, or leave the TV IP empty to skip picture modes |
 | Different display modes | `display` in the config |
 | Other button / hub | Anything that can make an HTTP request can call the dongle's `/launch` |
+
+## Extras
+
+- `scripts/fix-bluetooth.ps1` - **Intel AX200 only**: brings the Bluetooth radio back when Windows boots it into
+  "Code 10" and every pad vanishes. Run elevated.
+- `tools/` - admin helpers, not installed: `run-in-session.ps1` (run a launcher mode on the desktop from SSH),
+  `keepawake.ps1` (keep the PC awake while an SSH session is open).
 
 ## Good to know
 

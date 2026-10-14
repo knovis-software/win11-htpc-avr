@@ -29,6 +29,20 @@ foreach ($l in @(@{ N = 'Plex HTPC 4K HDR'; A = '' }, @{ N = 'Plex HTPC Music'; 
   $s.Arguments = "-NoProfile -WindowStyle Hidden -File `"$dir\PlexHDR.ps1`"$($l.A)"; $s.WorkingDirectory = $dir; $s.Save()
 }
 
+# 3b. Apps that switch Windows to stereo while they run (so the receiver can upmix them), then back to 5.1.
+#     waitForCommandLine: for apps that hand playback to a browser - wait until no process with that command line is left.
+foreach ($a in @($cfg.stereoApps)) {
+  if (-not $a.name) { continue }
+  $exe = [Environment]::ExpandEnvironmentVariables($a.exe)
+  if (-not (Test-Path $exe)) { Write-Warning "$($a.name): $exe not found - shortcut written anyway" }
+  $argline = "-NoProfile -WindowStyle Hidden -File `"$dir\Start-StereoApp.ps1`" -Exe `"$exe`" -Arguments `"$($a.args)`""
+  if ($a.waitForCommandLine) { $argline += " -WaitForCommandLine `"$($a.waitForCommandLine)`"" }
+  $s = $sh.CreateShortcut("$dir\$($a.name).lnk"); $s.TargetPath = $pwsh; $s.Arguments = $argline; $s.WorkingDirectory = $dir
+  $s.IconLocation = "$exe,0"; $s.WindowStyle = 7; $s.Description = "$($a.name) with Windows audio at stereo while it runs"; $s.Save()
+}
+. "$dir\SpeakerLayout.ps1"
+'default speaker layout: ' + (Set-SpeakerLayout -Layout 5.1)   # games get 5.1; the stereo apps switch it while they run
+
 # 4. Resident AutoHotkey scripts: logon tasks in the interactive session (a GUI started from a service lands in session 0).
 $ahk = "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe"
 if (Test-Path $ahk) {
