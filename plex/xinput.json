@@ -1,0 +1,134 @@
+// XInput gamepads (Xbox 360/One/Series pads, and third-party pads in XInput
+// mode such as the 8BitDo Ultimate 2).
+//
+// Why this file exists: XInput exposes NO product name -- the API returns only a
+// slot number and a capability bitmask -- so SDL synthesises the generic name
+// "XInput Controller #1". None of Plex's builtin idmatchers match that, so
+// without this file the pad's buttons arrive at the InputManager and map to
+// nothing at all.
+//
+// This only works alongside SDL_JOYSTICK_RAWINPUT=0 in Plex's environment.
+// With RawInput active SDL enumerates the pad but never delivers its events, and
+// the pad shows up under its HID name instead (e.g. "(8BitDo Ultimate 2
+// Wireless Controller for PC)").
+//
+// Two names, two enumerations, one map.
+//
+// NAMES: SDL names a pad from whatever it can correlate. A USB pad it cannot
+// identify becomes the generic "XInput Controller #1" (XInput exposes no product
+// name at all); an Xbox pad it can correlate keeps "Xbox Series X Controller".
+// The idmatcher is a regular expression and matches either.
+//
+// BUTTON COUNTS: 11 is the XInput layout; 16 is the raw-HID layout an Xbox pad
+// reports over Bluetooth. Sixteen is not a malfunction -- it is the richer view,
+// and the only one that can expose the Share button, which XInput has no slot
+// for. Both ranges are mapped below (0-10 and 11-16), so either enumeration
+// works and this file covers an 8BitDo in XInput mode and a Series X over
+// Bluetooth equally.
+//
+// 2026-10-05 - THE GUIDE BUTTON IS DELIBERATELY UNMAPPED, in both enumerations.
+// Steam owns the Guide button and its chords (Guide + left stick = Denon volume,
+// see the README). Plex has no notion of a chord: it sees every
+// button the pad reports, Steam or not, and Guide used to be home (short) /
+// exit (long) here, so holding it for a chord quit Plex ("Emit input action
+// (long):exit", 2026-09-26 21:36). Home is still B long-press.
+{
+  "name": "XInput Controller",
+  "idmatcher": "(XInput Controller|Xbox).*",
+  "mapping": {
+    // Directional pad (D-pad) -- the hat
+    "KEY_HAT_UP": "up",
+    "KEY_HAT_DOWN": "down",
+    "KEY_HAT_LEFT": "left",
+    "KEY_HAT_RIGHT": "right",
+
+    // A button
+    "KEY_BUTTON_0": {
+      "short": "enter",
+      "long": "menu"
+    },
+
+    // B button
+    "KEY_BUTTON_1": {
+      "short": "back",
+      "long": "home"
+    },
+
+    // X button -- play_pause, not bare "play". Plex's builtin Xbox map uses
+    // "play", which starts playback but does not toggle; on a pad the single
+    // transport button has to do both.
+    "KEY_BUTTON_2": "play_pause",
+
+    // Y button
+    "KEY_BUTTON_3": "search",
+
+    // Left bumper
+    "KEY_BUTTON_4": ["seek_backward", "previous_pivot_tab"],
+
+    // Right bumper
+    "KEY_BUTTON_5": ["seek_forward", "next_pivot_tab"],
+
+    // View / Back
+    "KEY_BUTTON_6": "info",
+
+    // Menu / Start
+    "KEY_BUTTON_7": "menu",
+
+    // Left stick (press)
+    "KEY_BUTTON_8": "cycle_audio",
+
+    // Right stick (press)
+    "KEY_BUTTON_9": "cycle_subtitles",
+
+    // KEY_BUTTON_10 -- Guide / Xbox button: unmapped on purpose (Steam owns it, see top).
+
+    // ---- Buttons 11-16: the raw-HID enumeration ------------------------------
+    // An Xbox pad over Bluetooth can enumerate as SIXTEEN buttons rather than the
+    // XInput eleven. That is not a fault -- it is the richer HID view, and it is
+    // the only one that can expose the Share button at all (XInput has no slot
+    // for it). Which enumeration you get depends on the connection and backend,
+    // so BOTH ranges are mapped here and whichever the pad reports just works.
+    // Plex's builtin xbox-one.json carries both ranges for the same reason.
+
+    // Menu button (HID enumeration)
+    "KEY_BUTTON_11": "menu",
+
+    // Share button -- present only on Series X|S pads, and only over HID
+    "KEY_BUTTON_12": "toggle_subtitles",
+
+    // Left stick press (HID enumeration)
+    "KEY_BUTTON_13": "cycle_audio",
+
+    // Right stick press (HID enumeration)
+    "KEY_BUTTON_14": "cycle_subtitles",
+
+    // KEY_BUTTON_15 -- Xbox button (HID enumeration): unmapped on purpose, as button 10.
+
+    // View button (HID enumeration)
+    "KEY_BUTTON_16": "info",
+
+    // Left stick (horizontal axis)
+    "KEY_AXIS_0_UP": "left",
+    "KEY_AXIS_0_DOWN": "right",
+
+    // Left stick (vertical axis). Also Steam's volume-chord partner: while Guide
+    // is held, Plex still sees the stick and moves the selection / shows the OSD.
+    "KEY_AXIS_1_UP": "up",
+    "KEY_AXIS_1_DOWN": "down",
+
+    // Left trigger
+    "KEY_AXIS_2_DOWN": ["page_up", "step_backward"],
+
+    // KEY_AXIS_3 -- right stick LEFT/RIGHT: unmapped on purpose (2026-10-06). It was
+    // skip_previous / skip_next, and a volume push on the same stick that drifted a
+    // little sideways restarted the movie (skip_previous restarts a title more than
+    // 10 s in). Chapter skips stay on the triggers, 10 s seeks on the bumpers.
+
+    // Right stick (vertical axis) -- Plex's own volume (the player's, not the AVR's)
+    "KEY_AXIS_4_UP": "increase_volume",
+    "KEY_AXIS_4_DOWN": "decrease_volume",
+
+    // Right trigger
+    "KEY_AXIS_5_DOWN": ["page_down", "step_forward"]
+  }
+}

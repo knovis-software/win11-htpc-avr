@@ -1,0 +1,18 @@
+{
+  "installDir": "C:\\HTPC",
+  "avr": {
+    "ip": "192.168.1.50",
+    "windowsAudioName": "DENON-AVR"
+  },
+  "tv": {
+    "ip": "192.168.1.60",
+    "pskFile": "C:\\HTPC\\sony.psk",
+    "movieMode": "custom",
+    "desktopMode": "game"
+  },
+  "display": {
+    "movie": "3840x2160@60",
+    "desktop": "1920x1080@120"
+  },
+  "user": "HTPCUSER"
+}

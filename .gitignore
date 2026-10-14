@@ -1,0 +1,8 @@
+# Your settings and secrets
+htpc.config.json
+dongle/htpc_wake/wifi_secrets.h
+*.psk
+# Generated
+*.log
+dongle/htpc_wake/build/
+edid/*.bin

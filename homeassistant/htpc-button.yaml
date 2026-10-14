@@ -1,0 +1,143 @@
+# Home Assistant package: one button = TV + AVR on, HTPC awake; double press adds Plex movie, long press Plex music.
+# Save as config/packages/htpc-button.yaml (with `homeassistant: packages: !include_dir_named packages`), replace the
+# REPLACE_ values, put the two launch URLs in secrets.yaml, restart once. Tested with a SONOFF SNZB-01P on ZHA.
+#
+# secrets.yaml:
+#   htpc_launch_movie: http://DONGLE_IP/launch?action=movie&token=YOUR_TOKEN
+#   htpc_launch_music: http://DONGLE_IP/launch?action=music&token=YOUR_TOKEN
+
+wake_on_lan:
+
+rest_command:
+  htpc_wake:
+    url: "http://REPLACE_DONGLE_IP/wake"
+    timeout: 10
+  htpc_dongle_status:            # GET / -> {"usb_suspended": false, ...} once the HTPC is awake
+    url: "http://REPLACE_DONGLE_IP/"
+    timeout: 5
+  htpc_launch_movie:
+    url: !secret htpc_launch_movie
+    timeout: 5
+  htpc_launch_music:
+    url: !secret htpc_launch_music
+    timeout: 5
+
+script:
+  htpc_wake:
+    alias: Wake HTPC
+    sequence:
+      - action: wake_on_lan.send_magic_packet
+        data: { mac: "REPLACE_DONGLE_MAC", broadcast_port: 9 }   # the DONGLE's MAC, not the PC's
+        continue_on_error: true
+      - action: rest_command.htpc_wake
+        continue_on_error: true
+
+  htpc_av_on:
+    alias: HTPC AV on (TV input + AVR input)
+    mode: single
+    max_exceeded: silent
+    sequence:
+      - variables:
+          tv_was_off: "{{ not is_state('media_player.REPLACE_TV', 'on') }}"
+      - action: script.turn_on
+        target: { entity_id: script.htpc_wake }
+      - if: "{{ tv_was_off }}"
+        then:
+          - action: media_player.turn_on
+            target: { entity_id: media_player.REPLACE_TV }
+            continue_on_error: true
+          - wait_template: "{{ is_state('media_player.REPLACE_TV', 'on') }}"
+            timeout: "00:00:30"
+            continue_on_timeout: true
+      - action: media_player.select_source
+        data: { source: "REPLACE_TV_INPUT" }          # e.g. "HDMI 3 (eARC/ARC)"
+        target: { entity_id: media_player.REPLACE_TV }
+        continue_on_error: true
+      - if: "{{ not is_state('media_player.REPLACE_AVR', 'on') }}"
+        then:
+          - action: media_player.turn_on
+            target: { entity_id: media_player.REPLACE_AVR }
+            continue_on_error: true
+          - wait_template: "{{ is_state('media_player.REPLACE_AVR', 'on') }}"
+            timeout: "00:00:15"
+            continue_on_timeout: true
+      - action: media_player.select_source
+        data: { source: "REPLACE_AVR_INPUT" }          # the AVR input the HTPC is on, e.g. "PC"
+        target: { entity_id: media_player.REPLACE_AVR }
+        continue_on_error: true
+      # The TV's HDMI-CEC can pull the AVR to "TV Audio" late in its boot, after the input above was set.
+      - if: "{{ tv_was_off }}"
+        then:
+          - action: script.turn_on
+            target: { entity_id: script.htpc_hold_avr_input }
+
+  htpc_hold_avr_input:
+    alias: Keep the AVR on the HTPC input while the TV boots (30 s)
+    mode: restart
+    sequence:
+      - repeat:
+          sequence:
+            - if: "{{ state_attr('media_player.REPLACE_AVR', 'source') != 'REPLACE_AVR_INPUT' }}"
+              then:
+                - action: media_player.select_source
+                  data: { source: "REPLACE_AVR_INPUT" }
+                  target: { entity_id: media_player.REPLACE_AVR }
+                  continue_on_error: true
+            - wait_for_trigger:
+                - trigger: state
+                  entity_id: media_player.REPLACE_AVR
+                  attribute: source
+              timeout: "00:00:10"
+              continue_on_timeout: true
+          until: "{{ repeat.index >= 3 }}"
+
+  htpc_launch_plex:
+    alias: Launch Plex on the HTPC (movie or music)
+    mode: single
+    max_exceeded: silent
+    fields:
+      profile: { description: movie or music, example: movie }
+    sequence:
+      - variables: { awake: false, was_asleep: false, launched: false }
+      - repeat:                                          # wait until the dongle sees the USB bus resumed
+          sequence:
+            - action: rest_command.htpc_dongle_status
+              response_variable: st
+              continue_on_error: true
+            - variables:
+                awake: "{{ st is defined and st.status == 200 and st.content.usb_mounted | default(false) and not st.content.usb_suspended | default(true) }}"
+                was_asleep: "{{ was_asleep or not awake }}"
+            - if: "{{ not awake }}"
+              then: [ { delay: 2 } ]
+          until: "{{ awake or repeat.index >= 45 }}"
+      - if: "{{ was_asleep }}"
+        then: [ { delay: 8 } ]                           # let a freshly woken desktop settle
+      - repeat:                                          # the dongle answers 409 while the bus is suspended
+          sequence:
+            - if: "{{ profile == 'music' }}"
+              then: [ { action: rest_command.htpc_launch_music, response_variable: r, continue_on_error: true } ]
+              else: [ { action: rest_command.htpc_launch_movie, response_variable: r, continue_on_error: true } ]
+            - variables: { launched: "{{ r is defined and r.status == 200 }}" }
+            - if: "{{ not launched }}"
+              then: [ { delay: 3 } ]
+          until: "{{ launched or repeat.index >= 5 }}"
+
+automation:
+  - alias: HTPC button - single (AV on)
+    triggers: [ { trigger: device, domain: zha, device_id: REPLACE_BUTTON_DEVICE_ID, type: remote_button_short_press, subtype: button } ]
+    actions: [ { action: script.htpc_av_on } ]
+    mode: single
+  - alias: HTPC button - double (Plex movie)
+    triggers: [ { trigger: device, domain: zha, device_id: REPLACE_BUTTON_DEVICE_ID, type: remote_button_double_press, subtype: button } ]
+    actions:
+      - action: script.htpc_av_on                        # TV on BEFORE the launch: launching into a booting TV fails
+      - action: script.htpc_launch_plex
+        data: { profile: movie }
+    mode: single
+  - alias: HTPC button - long (Plex music)
+    triggers: [ { trigger: device, domain: zha, device_id: REPLACE_BUTTON_DEVICE_ID, type: remote_button_long_press, subtype: button } ]
+    actions:
+      - action: script.htpc_av_on
+      - action: script.htpc_launch_plex
+        data: { profile: music }
+    mode: single
